@@ -11,6 +11,7 @@
     "setup": "node scripts/setup.js",
     "autostart:on": "node scripts/autostart.js on",
     "autostart:off": "node scripts/autostart.js off",
+    "uninstall": "node scripts/uninstall.js",
     "test": "node --test test/*.test.js"
   },
   "engines": {

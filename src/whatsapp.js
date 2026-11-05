@@ -218,6 +218,19 @@ export class WhatsApp extends EventEmitter {
     await this.start();
   }
 
+  /** Unlink and stay off (uninstall). */
+  async shutdownAndUnlink() {
+    this.stopped = true;
+    this.mediaQueue = [];
+    try {
+      await this.sock?.logout();
+    } catch {}
+    try {
+      this.sock?.end(undefined);
+    } catch {}
+    await this.resetSession();
+  }
+
   async resetSession() {
     await fsp.rm(this.sessionDir, { recursive: true, force: true });
   }
@@ -392,7 +405,7 @@ export class WhatsApp extends EventEmitter {
       const base = live.media.fileName ? sanitize(path.basename(live.media.fileName, path.extname(live.media.fileName))).slice(0, 60) : live.type;
       const name = `${stamp}_${base}_${rec.id.slice(-6)}${ext}`;
       const current = store.getMessage(rec.chatId, rec.id);
-      if (!current?.media) return;
+      if (!current?.media || store.closed || this.stopped) return;
       const dir = store.mediaDirFor(rec.chatId);
       await fsp.mkdir(dir, { recursive: true });
       current.media.file = `media/${name}`; // set first so the orphan cleanup keeps it

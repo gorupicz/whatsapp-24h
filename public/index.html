@@ -135,6 +135,7 @@
           <div class="muted">En el teléfono, en “Vincular un dispositivo”, toca <b>“Vincular con número de teléfono”</b> y escribe este código.</div>
         </div>
       </details>
+      <p class="muted" style="font-size:13px;margin-top:14px">¿Ya no lo quieres? <a href="#" class="uninstall">Desinstalar</a></p>
       <div class="note">🔒 Esta página solo funciona en esta computadora. Nada sale de aquí: los mensajes se guardan en tu carpeta y se borran solos después de 24 horas.</div>
     </div>
   </section>
@@ -148,11 +149,22 @@
       </div>
       <div class="row">
         <button id="openFolder">Abrir carpeta</button>
-        <button class="danger" id="unlink">Desvincular</button>
+        <button id="unlink">Desvincular</button>
+        <button class="danger uninstall">Desinstalar</button>
       </div>
     </div>
     <div class="stats" id="stats"></div>
     <div class="muted" style="font-size:13px" id="okNote"></div>
+  </section>
+
+  <section id="doneCard" class="card hidden">
+    <h2>Listo, se desinstaló</h2>
+    <ul>
+      <li>Esta computadora se desvinculó de tu WhatsApp.</li>
+      <li>Se borraron las conversaciones guardadas<span id="doneFolder"></span>.</li>
+      <li>El programa se detuvo y ya no arranca al prender la computadora.</li>
+    </ul>
+    <p class="muted">Último paso opcional: arrastra a la papelera la carpeta del programa <span class="folder" id="doneApp"></span>. Ya puedes cerrar esta pestaña.</p>
   </section>
 
   <section id="viewer" class="card viewer hidden">
@@ -329,9 +341,24 @@ $('unlink').addEventListener('click', async () => {
   refreshStatus();
 });
 
+let uninstalled = false;
+document.querySelectorAll('.uninstall').forEach((b) => b.addEventListener('click', async (e) => {
+  e.preventDefault();
+  if (!confirm('¿Desinstalar WhatsApp 24h?\n\n• Desvincula esta computadora de tu WhatsApp\n• Borra todas las conversaciones guardadas en la carpeta\n• Detiene el programa y ya no arrancará solo\n\nNo se puede deshacer.')) return;
+  try {
+    const r = await post('/api/uninstall');
+    uninstalled = true;
+    ['linkCard', 'okCard', 'viewer'].forEach((id) => $(id).classList.add('hidden'));
+    $('doneCard').classList.remove('hidden');
+    $('doneFolder').textContent = r.folderRemoved ? ` (${r.dataDir})` : `. Quedaron otros archivos tuyos en ${r.dataDir}; esos no se tocaron`;
+    $('doneApp').textContent = r.appDir;
+    $('pill').className = 'pill'; $('pill').textContent = 'Desinstalado';
+  } catch (err) { alert(err.message); }
+}));
+
 refreshStatus();
-setInterval(refreshStatus, 2500);
-setInterval(refreshChats, 8000);
+setInterval(() => { if (!uninstalled) refreshStatus(); }, 2500);
+setInterval(() => { if (!uninstalled) refreshChats(); }, 8000);
 setTimeout(refreshChats, 800);
 new MutationObserver(() => refreshChats()).observe($('viewer'), { attributes: true, attributeFilter: ['class'] });
 </script>

@@ -330,13 +330,19 @@ export class Store {
   }
 
   // ---------- persistence ----------
+  close() {
+    this.closed = true;
+    clearTimeout(this.flushTimer);
+    this.flushTimer = null;
+  }
+
   markDirty(chatId) {
     this.dirty.add(chatId);
     this.scheduleFlush();
   }
 
   scheduleFlush() {
-    if (this.flushTimer) return;
+    if (this.flushTimer || this.closed) return;
     this.flushTimer = setTimeout(() => {
       this.flushTimer = null;
       this.flush().catch((e) => this.log.error?.({ err: e?.message }, 'flush failed'));
@@ -367,6 +373,7 @@ export class Store {
   }
 
   async _flush() {
+    if (this.closed) return;
     if (this.namesChanged && Date.now() - (this.lastFullRewrite || 0) > 20000) {
       this.namesChanged = false;
       this.lastFullRewrite = Date.now();

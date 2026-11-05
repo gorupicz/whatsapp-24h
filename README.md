@@ -52,10 +52,25 @@ Abre **http://localhost:2424** (o `http://whatsapp.localhost:2424` en Chrome, Ed
 | `npm run autostart:on` | Lo corre en segundo plano y al prender la computadora |
 | `npm run autostart:off` | Lo detiene y quita el arranque automático |
 | `npm run setup` | Cambia la carpeta donde se guarda todo |
+| `npm run uninstall` | Desinstala: desvincula, borra lo guardado y quita el arranque automático |
 | `npm test` | Pruebas |
 
 Para **actualizar**: `git pull && npm install && npm run autostart:on`.
-Para **desinstalar**: `npm run autostart:off`, desvincula la computadora desde tu teléfono (Dispositivos vinculados) y borra la carpeta `whatsapp-24h` y la carpeta de conversaciones.
+
+## Desinstalar
+
+En **http://localhost:2424** presiona **Desinstalar**. En un solo paso:
+- desvincula la computadora de tu WhatsApp,
+- borra las conversaciones guardadas (solo lo que creó el programa; si pusiste otros archivos en esa carpeta, no se tocan),
+- detiene el programa y ya no arranca al prender la computadora.
+
+Después puedes arrastrar la carpeta `whatsapp-24h` a la papelera. Con Claude Code o Codex basta con pedir: *“Desinstala WhatsApp 24h: corre `npm run uninstall` dentro de la carpeta whatsapp-24h y luego borra esa carpeta.”*
+
+> El botón **Desvincular** solo desconecta tu WhatsApp; el programa sigue abierto esperando que vuelvas a escanear. Para quitarlo del todo usa **Desinstalar**.
+
+## Usarlo con Claude Cowork
+
+[COWORK.md](COWORK.md) trae las instrucciones para un proyecto “WhatsApp” en Cowork con tres formas de leer tus mensajes: WhatsApp Web, la carpeta de conversaciones y WhatsApp Desktop (Mac).
 
 ## Qué hay en la carpeta
 

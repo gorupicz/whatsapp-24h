@@ -8,6 +8,7 @@ import pino from 'pino';
 import { loadConfig, APP_DIR } from './config.js';
 import { Store } from './store.js';
 import { WhatsApp } from './whatsapp.js';
+import { removeLoginItem, unloadLoginItem, deleteConversations, deleteProgramState } from './uninstall.js';
 
 const cfg = loadConfig();
 fs.mkdirSync(cfg.logDir, { recursive: true });
@@ -34,6 +35,7 @@ const MIME = {
 
 let store;
 let wa;
+let pruneTimer;
 
 function send(res, code, body, type = 'application/json; charset=utf-8') {
   res.writeHead(code, { 'Content-Type': type, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
@@ -101,6 +103,22 @@ async function handle(req, res) {
         await wa.unlink();
         return send(res, 200, { ok: true });
       }
+      if (p === '/api/uninstall') {
+        log.info('uninstall requested');
+        clearInterval(pruneTimer);
+        await store.flushing;
+        store.close();
+        await wa.shutdownAndUnlink();
+        removeLoginItem();
+        const removed = deleteConversations(cfg.dataDir);
+        deleteProgramState();
+        send(res, 200, { ok: true, dataDir: cfg.dataDir, folderRemoved: removed, appDir: APP_DIR });
+        setTimeout(() => {
+          unloadLoginItem();
+          process.exit(0); // exit 0: a login item never restarts it
+        }, 500);
+        return;
+      }
       if (p === '/api/open-folder') {
         openFolder(cfg.dataDir);
         return send(res, 200, { ok: true });
@@ -163,7 +181,7 @@ async function main() {
   wa = new WhatsApp({ store, sessionDir: cfg.sessionDir, maxMediaMB: cfg.maxMediaMB, logger: log });
   await wa.start();
 
-  setInterval(() => store.prune().catch((e) => log.error({ err: e?.message }, 'prune failed')), 5 * 60 * 1000);
+  pruneTimer = setInterval(() => store.prune().catch((e) => log.error({ err: e?.message }, 'prune failed')), 5 * 60 * 1000);
 
   log.info(`WhatsApp 24h listo: abre http://localhost:${cfg.port}  ·  carpeta: ${cfg.dataDir}`);
 
