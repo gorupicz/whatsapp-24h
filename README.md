@@ -94,6 +94,8 @@ Cada mensaje en `messages.json` incluye, cuando aplica: `type` (text, image, vid
 - La sesión de WhatsApp se guarda en `whatsapp-24h/session/`. Quien tenga esa carpeta puede leer tus mensajes nuevos: no la compartas.
 - Las fotos “ver una vez” no se pueden guardar: WhatsApp no las manda a dispositivos vinculados.
 - Los votos de encuestas no se guardan (solo la pregunta y las opciones).
+- Las personas que no tienes guardadas y que no tienen nombre público en WhatsApp aparecen con su número, igual que en WhatsApp Web.
+- Al vincular, WhatsApp manda los mensajes recientes en uno o dos minutos; de ahí en adelante todo llega en vivo.
 - Es un programa no oficial: usa el mismo protocolo que WhatsApp Web mediante [Baileys](https://github.com/WhiskeySockets/Baileys). No está afiliado a WhatsApp ni a Meta. Como solo lee, el riesgo es bajo, pero úsalo bajo tu propia responsabilidad.
 
 ---

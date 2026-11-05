@@ -176,7 +176,9 @@ export class WhatsApp extends EventEmitter {
         this.state = this.store.me ? 'connecting' : 'starting';
       }
       this.emit('change');
-      const delay = code === DisconnectReason.restartRequired ? 500 : Math.min(60000, 2000 * 2 ** this.retry++);
+      // 515 = restart after pairing; 408 before linking = the QR expired, show a new one now
+      const quick = code === DisconnectReason.restartRequired || (code === DisconnectReason.timedOut && !this.store.me);
+      const delay = quick ? 500 : Math.min(60000, 2000 * 2 ** this.retry++);
       setTimeout(() => this.start().catch((e) => this.fail(e)), code === 405 ? 30 * 60 * 1000 : delay);
     }
   }

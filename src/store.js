@@ -44,6 +44,16 @@ export class Store {
     for (const [jid, c] of Object.entries(state.contacts || {})) this.contacts.set(jid, c);
     for (const [lid, pn] of Object.entries(state.lidToPn || {})) this.lidToPn.set(lid, pn);
     if (state.me) this.me = state.me;
+    for (const [jid, c] of this.contacts) {
+      // a bare phone number is not a name
+      if (c.notify === `+${jidUser(jid)}`) delete c.notify;
+      // contacts saved under @lid before their number was known
+      const pn = jid.endsWith('@lid') && this.lidToPn.get(jid);
+      if (pn) {
+        this.contacts.set(pn, { ...c, ...this.contacts.get(pn) });
+        this.contacts.delete(jid);
+      }
+    }
     for (const meta of this.chats.values()) {
       if (!meta.folder) continue;
       const msgs = await readJson(path.join(this.dataDir, meta.folder, 'messages.json'), []);
@@ -66,6 +76,12 @@ export class Store {
     if (this.lidToPn.get(lid) === pn) return;
     this.lidToPn.set(lid, pn);
     this.stateDirty = true;
+    const lc = this.contacts.get(lid);
+    if (lc) {
+      this.contacts.set(pn, { ...lc, ...this.contacts.get(pn) });
+      this.contacts.delete(lid);
+      this.namesChanged = true;
+    }
     if (this.chats.has(lid) || this.messages.has(lid)) this.mergeChat(lid, pn);
   }
 
@@ -85,6 +101,7 @@ export class Store {
 
   upsertContact(c) {
     if (!c?.id) return;
+    if (c.notify && /^\+?\d[\d\s-]*$/.test(c.notify)) c = { ...c, notify: undefined };
     if (c.lid && c.phoneNumber) this.addLidMapping(c.lid, c.phoneNumber);
     if (c.id.endsWith('@lid') && c.phoneNumber) this.addLidMapping(c.id, c.phoneNumber);
     const jid = this.canonical(c.id, c.phoneNumber);
@@ -94,7 +111,8 @@ export class Store {
     if (JSON.stringify(prev) !== JSON.stringify(next)) {
       this.contacts.set(jid, next);
       this.stateDirty = true;
-      if (this.chats.has(jid)) this.markDirty(jid);
+      this.namesChanged = true;
+      this.scheduleFlush();
     }
   }
 
@@ -223,12 +241,12 @@ export class Store {
     if (!map) this.messages.set(record.chatId, (map = new Map()));
     const prev = map.get(record.id);
     const merged = prev ? mergeRecords(prev, record) : record;
-    if (!merged.fromMe && merged.readByMe === undefined) merged.readByMe = !live ? null : false;
+    if (!merged.fromMe && merged.type !== 'system' && merged.readByMe === undefined) merged.readByMe = !live ? null : false;
     map.set(record.id, merged);
     if (!chat.lastMessageTs || merged.ts > chat.lastMessageTs) chat.lastMessageTs = merged.ts;
     if (live && merged.fromMe && !prev) this.markAllRead(record.chatId, merged.ts); // replying reads the chat
-    if (!merged.fromMe && merged.senderName && merged.sender && !this.contacts.get(merged.sender)?.notify) {
-      this.upsertContact({ id: merged.sender, notify: merged.senderName });
+    if (!merged.fromMe && merged.pushName && merged.sender && !this.contacts.get(merged.sender)?.notify) {
+      this.upsertContact({ id: merged.sender, notify: merged.pushName });
     }
     if (!live) this.applyUnreadToMessages(record.chatId);
     this.markDirty(record.chatId);
@@ -251,7 +269,7 @@ export class Store {
     if (!found && emoji && this.isInWindow(at)) {
       // Reaction to a message older than the window: keep it as its own entry.
       this.putMessage(
-        { id: `reaction-${targetId}-${jidUser(sender)}`, chatId, fromMe: sender === this.me?.jid, sender, senderName, ts: at, time: new Date(at * 1000).toISOString(), type: 'reaction', text: emoji, reactionTo: { id: targetId } },
+        { id: `reaction-${targetId}-${jidUser(sender)}`, chatId, fromMe: sender === this.me?.jid, sender, pushName: senderName, ts: at, time: new Date(at * 1000).toISOString(), type: 'reaction', text: emoji, reactionTo: { id: targetId } },
         { live: true },
       );
     }
@@ -349,6 +367,11 @@ export class Store {
   }
 
   async _flush() {
+    if (this.namesChanged && Date.now() - (this.lastFullRewrite || 0) > 20000) {
+      this.namesChanged = false;
+      this.lastFullRewrite = Date.now();
+      for (const id of this.messages.keys()) this.dirty.add(id);
+    } else if (this.namesChanged) this.scheduleFlush();
     const dirty = [...this.dirty];
     this.dirty.clear();
     for (const chatId of dirty) {
@@ -440,7 +463,10 @@ export class Store {
       group: meta.group
         ? {
             ...meta.group,
-            participants: (meta.group.participants || []).map((p) => ({ ...p, name: this.nameOf(p.jid) })),
+            participants: (meta.group.participants || []).map((p) => {
+              const jid = p.jid?.endsWith('@lid') ? this.lidToPn.get(p.jid) || p.jid : p.jid;
+              return { ...p, jid, name: this.nameOf(jid) };
+            }),
           }
         : undefined,
       folder: meta.folder || null,
@@ -519,25 +545,34 @@ function mergeRecords(prev, next) {
 }
 
 function decorate(m, store) {
-  if (m.sender) m.senderName = store.nameOf(m.sender, m.senderName);
-  if (m.replyTo?.sender) m.replyTo.senderName = store.nameOf(m.replyTo.sender);
+  const fix = (j) => (j && j.endsWith('@lid') ? store.lidToPn.get(j) || j : j);
+  m.sender = fix(m.sender);
+  if (m.sender) m.senderName = store.nameOf(m.sender, m.pushName);
+  if (m.replyTo?.sender) {
+    m.replyTo.sender = fix(m.replyTo.sender);
+    m.replyTo.senderName = store.nameOf(m.replyTo.sender);
+  }
+  if (m.mentions) m.mentions = m.mentions.map(fix);
   if (m.replyTo?.id && !m.replyTo.text) {
     const q = store.getMessage(m.chatId, m.replyTo.id);
     if (q) m.replyTo.text = q.text || (q.media ? `[${q.type}]` : null);
   }
-  for (const r of m.reactions || []) r.senderName = store.nameOf(r.sender);
+  for (const r of m.reactions || []) {
+    r.sender = fix(r.sender);
+    r.senderName = store.nameOf(r.sender);
+  }
   return m;
 }
 
 const TYPE_LABEL = {
   image: 'imagen', video: 'video', video_note: 'video circular', gif: 'GIF', audio: 'audio', voice: 'nota de voz',
   document: 'documento', sticker: 'sticker', location: 'ubicación', live_location: 'ubicación en tiempo real',
-  contact: 'contacto', contacts: 'contactos', poll: 'encuesta', event: 'evento', group_invite: 'invitación a grupo',
+  contact: 'contacto', contacts: 'contactos', product: 'producto', call: 'llamada', poll: 'encuesta', event: 'evento', group_invite: 'invitación a grupo',
   reaction: 'reacción', system: 'aviso', waiting: 'esperando mensaje', other: 'otro',
 };
 
 function preview(store, m) {
-  const who = m.fromMe ? 'Yo' : store.nameOf(m.sender, m.senderName);
+  const who = m.fromMe ? 'Yo' : store.nameOf(m.sender, m.pushName);
   const body = m.deleted ? '(eliminado)' : m.text || (m.type !== 'text' ? `[${TYPE_LABEL[m.type] || m.type}]` : '');
   return `${who}: ${body}`.slice(0, 140);
 }
@@ -558,7 +593,7 @@ function transcript(store, chatId, msgs) {
     '',
   ];
   for (const m of msgs) {
-    const who = m.fromMe ? 'Yo' : store.nameOf(m.sender, m.senderName);
+    const who = m.fromMe ? 'Yo' : store.nameOf(m.sender, m.pushName);
     let line = `[${fmtLocal(m.time)}] ${who}`;
     if (m.replyTo) line += ` (respondiendo a ${m.replyTo.senderName || 'un mensaje'}${m.replyTo.text ? `: "${m.replyTo.text.slice(0, 60)}"` : ''})`;
     if (m.reactionTo) line += ' (reaccionó a un mensaje anterior)';

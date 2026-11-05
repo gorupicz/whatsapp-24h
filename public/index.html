@@ -183,7 +183,7 @@ const post = (url, body) => fetch(url, { method: 'POST', headers: { 'Content-Typ
 const fileUrl = (chat, rel) => '/files/' + (chat.folder + '/' + rel).split(/[\\/]/).map(encodeURIComponent).join('/');
 const hhmm = (iso) => new Date(iso).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
 const dayOf = (iso) => new Date(iso).toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' });
-const LABEL = { image: 'Foto', video: 'Video', video_note: 'Video circular', gif: 'GIF', audio: 'Audio', voice: 'Nota de voz', document: 'Documento', sticker: 'Sticker', location: 'Ubicación', live_location: 'Ubicación en tiempo real', contact: 'Contacto', contacts: 'Contactos', poll: 'Encuesta', event: 'Evento', group_invite: 'Invitación a grupo', call: 'Llamada', reaction: 'Reacción', other: 'Mensaje' };
+const LABEL = { image: 'Foto', video: 'Video', video_note: 'Video circular', gif: 'GIF', audio: 'Audio', voice: 'Nota de voz', document: 'Documento', sticker: 'Sticker', location: 'Ubicación', live_location: 'Ubicación en tiempo real', contact: 'Contacto', contacts: 'Contactos', product: 'Producto', poll: 'Encuesta', event: 'Evento', group_invite: 'Invitación a grupo', call: 'Llamada', reaction: 'Reacción', other: 'Mensaje' };
 
 let status = null, chats = [], selected = null, filter = 'all', lastSig = '';
 
@@ -248,7 +248,7 @@ function renderChats() {
         ${c.archived ? '<span class="tag">archivado</span>' : ''}
         ${c.pinned ? '<span class="tag">fijado</span>' : ''}
         ${c.muted ? '<span class="tag">silenciado</span>' : ''}
-        ${c.mediaCount ? `<span class="tag">${c.mediaCount} adjuntos</span>` : ''}
+        ${c.mediaCount ? `<span class="tag">${c.mediaCount} ${c.mediaCount === 1 ? 'adjunto' : 'adjuntos'}</span>` : ''}
       </div>
     </div>`).join('') : '<div class="empty">No hay conversaciones con este filtro.</div>';
 }
@@ -294,7 +294,7 @@ function renderMsg(c, m) {
       const why = { pending: 'descargando…', failed: 'no se pudo descargar', too_large: 'demasiado grande, no se guardó' }[m.media.status] || '';
       body += `<div class="doc">${esc(LABEL[m.type] || m.type)} · ${esc(why)}</div>`;
     }
-  } else if (!['text', 'poll', 'location', 'contact', 'contacts', 'reaction'].includes(m.type)) {
+  } else if (!['text', 'poll', 'location', 'contact', 'contacts', 'reaction', 'product'].includes(m.type)) {
     body += `<div class="muted" style="font-size:13px">${esc(LABEL[m.type] || m.type)}${m.viewOnce ? ' (ver una vez)' : ''}</div>`;
   }
   if (m.location?.url) body += `<a href="${esc(m.location.url)}" target="_blank" rel="noopener">📍 ${esc(m.location.name || 'Ver en el mapa')}</a>`;

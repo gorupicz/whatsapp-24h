@@ -143,3 +143,15 @@ test('a @lid chat merges into the phone-number chat once the mapping is known', 
   assert.equal(store.listMessages(LID).length, 0);
   assert.equal(store.listMessages(ANA)[0].id, 'L1');
 });
+
+test('names saved under @lid resolve once the phone number is known', async () => {
+  const { store, wa } = await setup();
+  const LID = '88888888888@lid';
+  wa.onEvents({ 'contacts.upsert': [{ id: LID, name: 'Carla' }] });
+  wa.onEvents({ 'messages.upsert': { type: 'notify', messages: [msg({ chat: GROUP, id: 'C1', participant: LID, message: { conversation: 'hola' } })] } });
+  assert.equal(store.listMessages(GROUP)[0].senderName, 'Carla');
+  wa.onEvents({ 'lid-mapping.update': { lid: LID, pn: BETO } });
+  const m = store.listMessages(GROUP)[0];
+  assert.equal(m.sender, BETO);
+  assert.equal(m.senderName, 'Carla');
+});

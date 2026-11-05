@@ -85,6 +85,7 @@ function typeOf(content) {
   if (key === 'eventMessage') return { type: 'event', key };
   if (key === 'groupInviteMessage') return { type: 'group_invite', key };
   if (key === 'reactionMessage') return { type: 'reaction', key };
+  if (key === 'productMessage') return { type: 'product', key };
   if (key === 'protocolMessage') return { type: 'protocol', key };
   return { type: 'other', key };
 }
@@ -173,7 +174,7 @@ export function classify(msg, ctx) {
 
   // Plumbing-only payloads (sender keys, context info alone) carry nothing visible.
   if (type === 'unknown') return { kind: 'ignore' };
-  if (type === 'other' && ['senderKeyDistributionMessage', 'messageContextInfo', 'pollUpdateMessage', 'encReactionMessage', 'keepInChatMessage', 'encEventResponseMessage'].includes(contentKey)) {
+  if (type === 'other' && ['senderKeyDistributionMessage', 'messageContextInfo', 'pollUpdateMessage', 'encReactionMessage', 'keepInChatMessage', 'encEventResponseMessage', 'albumMessage'].includes(contentKey)) {
     return { kind: 'ignore' };
   }
 
@@ -242,6 +243,11 @@ export function classify(msg, ctx) {
       location: inner.location?.name || null,
     };
   }
+  if (type === 'product') {
+    const p = inner.product || {};
+    record.product = { title: p.title || null, description: p.description || null, price: toNum(p.priceAmount1000) != null ? toNum(p.priceAmount1000) / 1000 : null, currency: p.currencyCode || null, url: p.url || null };
+    record.text = [p.title, p.description, inner.body].filter(Boolean).join(' — ') || null;
+  }
   if (type === 'group_invite') record.groupInvite = { groupName: inner.groupName, groupJid: inner.groupJid };
 
   // History sync carries reactions and group receipts inline.
@@ -272,7 +278,7 @@ export function classify(msg, ctx) {
       chatId,
       fromMe,
       sender,
-      senderName: fromMe ? null : msg.pushName || null,
+      pushName: fromMe ? null : msg.pushName || null,
       ts,
       time: new Date(ts * 1000).toISOString(),
       ...extra,
