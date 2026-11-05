@@ -1,0 +1,24 @@
+{
+  "name": "whatsapp-24h",
+  "version": "1.0.0",
+  "description": "Read-only local WhatsApp archive: keeps the last 24 hours of your chats (with attachments) in a folder you choose.",
+  "type": "module",
+  "main": "src/server.js",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "start": "node src/server.js",
+    "setup": "node scripts/setup.js",
+    "autostart:on": "node scripts/autostart.js on",
+    "autostart:off": "node scripts/autostart.js off",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "7.0.0-rc14",
+    "pino": "10.4.0",
+    "qrcode": "1.5.4"
+  }
+}

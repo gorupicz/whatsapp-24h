@@ -1,0 +1,7 @@
+node_modules/
+config.json
+session/
+state/
+logs/
+*.tmp
+.DS_Store
