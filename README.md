@@ -70,7 +70,7 @@ Después puedes arrastrar la carpeta `whatsapp-24h` a la papelera. Con Claude Co
 
 ## Usarlo con Claude Cowork
 
-[COWORK.md](COWORK.md) trae las instrucciones para un proyecto “WhatsApp” en Cowork con tres formas de leer tus mensajes: WhatsApp Web, la carpeta de conversaciones y WhatsApp Desktop (Mac).
+[COWORK.md](COWORK.md) trae las instrucciones para un proyecto “WhatsApp” en Cowork con tres formas de leer tus mensajes: A) WhatsApp Web, B) WhatsApp Desktop (Mac) y C) la carpeta de conversaciones.
 
 ## Qué hay en la carpeta
 
